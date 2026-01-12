@@ -1,0 +1,23 @@
+langchain>=1.0.0
+langchain-openai>=0.1.6
+langchain-chroma>=0.1.0
+openai>=1.0.0
+python-dotenv>=1.0.0
+chromadb>=0.4.22
+
+# # Core RAG stack
+# langchain>=0.1.20
+# langchain-openai>=0.1.7
+# chromadb>=0.5.0
+
+# # PDF ingestion
+# pypdf>=4.2.0
+
+# # Environment & config
+# python-dotenv>=1.0.1
+
+# # Token counting (OpenAI safety)
+# tiktoken>=0.7.0
+
+# # Numerical backend (let pip decide minor versions)
+# numpy>=1.26
