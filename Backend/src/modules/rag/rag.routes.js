@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { askQuestion } from '../controllers/ai.controller.js';
+import { askQuestion } from './rag.controller.js';
 
 const router = Router();
 

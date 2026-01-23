@@ -1,18 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-// generator client {
-//   provider = "prisma-client"
-//   output   = "../generated/prisma"
-// }
-//
-// datasource db {
-//   provider = "postgresql"
-// }
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -21,23 +6,133 @@ datasource db {
   provider = "postgresql"
 }
 
-model Farmer {
-  id        String   @id @default(uuid())
-  name      String
-  phone     String   @unique
-  district  String
-  createdAt DateTime @default(now())
-
-  farms Farm[]
+model app_user {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email          String              @unique @db.VarChar(320)
+  password_hash  String
+  full_name      String              @db.VarChar(150)
+  phone_number   String?             @db.VarChar(15)
+  role           user_role
+  account_status user_account_status @default(ACTIVE)
+  last_login_at  DateTime?           @db.Timestamptz(6)
+  created_at     DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime            @default(now()) @db.Timestamptz(6)
+  farmer         farmer?
+  farms          farm[]
 }
 
-model Farm {
-  id        String   @id @default(uuid())
-  farmerId  String
-  location  String
-  areaAcres Float
-  soilType  String
-  createdAt DateTime @default(now())
+model farm {
+  id                         String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  farmer_id                  String                    @db.Uuid
+  name                       String                    @db.VarChar(150)
+  boundary                   Unsupported("geometry")
+  certification_status       farm_certification_status @default(DRAFT)
+  certification_submitted_at DateTime?                 @db.Timestamptz(6)
+  certified_at               DateTime?                 @db.Timestamptz(6)
+  certified_by               String?                   @db.Uuid // auditor / authority user
+  remarks                    String?
+  created_at                 DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                  @default(now()) @db.Timestamptz(6)
+  app_user                   app_user?                 @relation(fields: [certified_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  farmer                     farmer                    @relation(fields: [farmer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  plot                       plot[]
 
-  farmer Farmer @relation(fields: [farmerId], references: [id])
+  @@index([farmer_id], map: "idx_farm_farmer")
+  @@index([boundary], map: "idx_farm_location", type: Gist)
+}
+
+model farmer {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @unique @db.Uuid
+  village    String?  @db.VarChar(100)
+  taluk      String?  @db.VarChar(100)
+  district   String   @db.VarChar(100)
+  state      String   @db.VarChar(100)
+  country    String   @default("India") @db.VarChar(50)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  farm       farm[]
+  app_user   app_user @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model irrigation_method {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                    String                    @unique
+  description             String?
+  is_water_efficient      Boolean                   @default(false)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  plot_irrigation_methods plot_irrigation_methods[]
+}
+
+model plot {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  farm_id                 String                    @db.Uuid
+  soil_type_id            String                    @db.Uuid
+  name                    String?
+  area_hectares           Decimal                   @db.Decimal(10, 2)
+  boundary                Unsupported("geography")
+  elevation_meters        Decimal?                  @db.Decimal(6, 2)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  farm                    farm                      @relation(fields: [farm_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  soil_type               soil_type                 @relation(fields: [soil_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plot_irrigation_methods plot_irrigation_methods[]
+
+  @@index([boundary], map: "idx_plot_boundary", type: Gist)
+  @@index([farm_id], map: "idx_plot_farm")
+}
+
+model plot_irrigation_methods {
+  plot_id              String            @db.Uuid
+  irrigation_method_id String            @db.Uuid
+  is_primary           Boolean           @default(false)
+  created_at           DateTime          @default(now()) @db.Timestamptz(6)
+  irrigation_method    irrigation_method @relation(fields: [irrigation_method_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plot                 plot              @relation(fields: [plot_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([plot_id, irrigation_method_id])
+}
+
+model soil_type {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String   @unique
+  description    String?
+  typical_ph_min Decimal? @db.Decimal(3, 1)
+  typical_ph_max Decimal? @db.Decimal(3, 1)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  plot           plot[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+}
+
+enum farm_certification_status {
+  DRAFT
+  SUBMITTED
+  UNDER_AUDIT
+  CERTIFIED
+  REJECTED
+  SUSPENDED
+  REVOKED
+}
+
+enum user_account_status {
+  ACTIVE
+  INACTIVE
+  LOCKED
+  SUSPENDED
+  DELETED
+}
+
+enum user_role {
+  FARMER
+  AUDITOR
+  AUTHORITY
+  ADMIN
 }

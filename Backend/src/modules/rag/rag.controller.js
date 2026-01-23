@@ -1,4 +1,4 @@
-import { askRag } from '../services/fastapi.service.js';
+import { askRag } from './rag.service.js';
 
 export const askQuestion = async (req, res) => {
     const { question } = req.body;
