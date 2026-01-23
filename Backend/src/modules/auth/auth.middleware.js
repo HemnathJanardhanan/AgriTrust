@@ -28,7 +28,7 @@ export async function authenticate(req, res, next) {
         if (!user) {
             return res.status(401).json({ error: "User not found" });
         }
-
+    console.log("Auth Middleware : User found -> ", user);
         if (user.account_status !== "ACTIVE") {
             return res.status(403).json({ error: "Account not active" });
         }
