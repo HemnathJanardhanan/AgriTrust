@@ -15,3 +15,10 @@ export const farmerRegisterSchema = z.object({
     village: z.string().optional(),
     taluk: z.string().optional(),
 });
+
+export const AuthorityRegisterSchema = z.object({
+    email: z.string().email(),
+    password: z.string().min(8),
+    full_name: z.string().min(3),
+    phone_number: z.string().optional()
+});

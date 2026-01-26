@@ -48,8 +48,8 @@ const multiPolygon = z.array(polygon).min(1);
 
 export const farmCreateSchema = z.object({
     name: z.string().min(3),
-    boundary: z.object({
-        type: z.literal("MultiPolygon"),
-        coordinates: multiPolygon,
-    }),
+    // boundary: z.object({
+    //     type: z.literal("MultiPolygon"),
+    //     coordinates: multiPolygon,
+    // }),
 });

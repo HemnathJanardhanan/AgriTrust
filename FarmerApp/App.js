@@ -1,16 +1,20 @@
 import "./global.css"
-import { NavigationContainer } from "@react-navigation/native";
-import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import OnboardingNavigator from "./src/navigation/OnboardingNavigator";
+import RootNavigator from "./src/navigation/RootNavigator";
+import { AuthProvider } from "./src/context/AuthContext";
+import {AppProvider} from "./src/context/AppContext";
 
 export default function App() {
     return (
-        <SafeAreaProvider>
-        <NavigationContainer>
-            <StatusBar style="dark" />
-            <OnboardingNavigator />
-        </NavigationContainer>
+
+        <SafeAreaProvider >
+            <AuthProvider>
+            <AppProvider>
+
+                <RootNavigator />
+
+            </AppProvider>
+            </AuthProvider>
         </SafeAreaProvider>
     );
 }

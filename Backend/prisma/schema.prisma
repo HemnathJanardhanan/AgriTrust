@@ -25,7 +25,6 @@ model farm {
   id                         String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   farmer_id                  String                    @db.Uuid
   name                       String                    @db.VarChar(150)
-  boundary                   Unsupported("geometry")
   certification_status       farm_certification_status @default(DRAFT)
   certification_submitted_at DateTime?                 @db.Timestamptz(6)
   certified_at               DateTime?                 @db.Timestamptz(6)
@@ -38,7 +37,6 @@ model farm {
   plot                       plot[]
 
   @@index([farmer_id], map: "idx_farm_farmer")
-  @@index([boundary], map: "idx_farm_location", type: Gist)
 }
 
 model farmer {
