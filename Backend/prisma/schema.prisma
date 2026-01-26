@@ -7,18 +7,19 @@ datasource db {
 }
 
 model app_user {
-  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email          String              @unique @db.VarChar(320)
-  password_hash  String
-  full_name      String              @db.VarChar(150)
-  phone_number   String?             @db.VarChar(15)
-  role           user_role
-  account_status user_account_status @default(ACTIVE)
-  last_login_at  DateTime?           @db.Timestamptz(6)
-  created_at     DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime            @default(now()) @db.Timestamptz(6)
-  farmer         farmer?
-  farms          farm[]
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email               String                @unique @db.VarChar(320)
+  password_hash       String
+  full_name           String                @db.VarChar(150)
+  phone_number        String?               @db.VarChar(15)
+  role                user_role
+  account_status      user_account_status   @default(ACTIVE)
+  last_login_at       DateTime?             @db.Timestamptz(6)
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+  farms               farm[]
+  farmer              farmer?
+  ndvi_processing_job ndvi_processing_job[]
 }
 
 model farm {
@@ -28,7 +29,7 @@ model farm {
   certification_status       farm_certification_status @default(DRAFT)
   certification_submitted_at DateTime?                 @db.Timestamptz(6)
   certified_at               DateTime?                 @db.Timestamptz(6)
-  certified_by               String?                   @db.Uuid // auditor / authority user
+  certified_by               String?                   @db.Uuid
   remarks                    String?
   created_at                 DateTime                  @default(now()) @db.Timestamptz(6)
   updated_at                 DateTime                  @default(now()) @db.Timestamptz(6)
@@ -72,9 +73,13 @@ model plot {
   elevation_meters        Decimal?                  @db.Decimal(6, 2)
   created_at              DateTime                  @default(now()) @db.Timestamptz(6)
   updated_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  ndvi_processing_job     ndvi_processing_job[]
   farm                    farm                      @relation(fields: [farm_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   soil_type               soil_type                 @relation(fields: [soil_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   plot_irrigation_methods plot_irrigation_methods[]
+  plot_ndvi_anomaly       plot_ndvi_anomaly[]
+  plot_ndvi_monthly       plot_ndvi_monthly[]
+  plot_ndvi_visual_cache  plot_ndvi_visual_cache[]
 
   @@index([boundary], map: "idx_plot_boundary", type: Gist)
   @@index([farm_id], map: "idx_plot_farm")
@@ -110,6 +115,78 @@ model spatial_ref_sys {
   proj4text String? @db.VarChar(2048)
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ndvi_processing_job {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plot_id      String  @db.Uuid
+  requested_by String? @db.Uuid
+
+  certification_reference_date DateTime
+  date_range_start             DateTime
+  date_range_end               DateTime
+
+  status         ndvi_job_status
+  failure_reason String?
+
+  triggered_at DateTime  @default(now())
+  completed_at DateTime?
+
+  plot     plot      @relation(fields: [plot_id], references: [id], onDelete: Cascade)
+  app_user app_user? @relation(fields: [requested_by], references: [id])
+
+  plot_ndvi_monthly plot_ndvi_monthly[]
+
+  @@index([plot_id])
+  @@index([status])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model plot_ndvi_anomaly {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plot_id             String    @db.Uuid
+  year                Int
+  month               Int
+  anomaly_type        String    @db.VarChar(30)
+  ndvi_value          Decimal   @db.Decimal(5, 4)
+  reference_mean_ndvi Decimal?  @db.Decimal(5, 4)
+  severity            String?   @db.VarChar(10)
+  detected_at         DateTime? @default(now()) @db.Timestamptz(6)
+  plot                plot      @relation(fields: [plot_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([plot_id], map: "idx_ndvi_anomaly_plot")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model plot_ndvi_monthly {
+  id                    String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plot_id               String              @db.Uuid
+  ndvi_job_id           String              @db.Uuid
+  year                  Int
+  month                 Int
+  mean_ndvi             Decimal             @db.Decimal(5, 4)
+  pixel_count           Int
+  cloud_free_percentage Decimal?            @db.Decimal(5, 2)
+  created_at            DateTime?           @default(now()) @db.Timestamptz(6)
+  ndvi_processing_job   ndvi_processing_job @relation(fields: [ndvi_job_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  plot                  plot                @relation(fields: [plot_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([plot_id, year, month])
+  @@index([plot_id], map: "idx_ndvi_monthly_plot")
+  @@index([year, month], map: "idx_ndvi_monthly_year_month")
+}
+
+model plot_ndvi_visual_cache {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plot_id      String    @db.Uuid
+  year         Int
+  month        Int
+  gee_tile_url String
+  generated_at DateTime? @default(now()) @db.Timestamptz(6)
+  plot         plot      @relation(fields: [plot_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([plot_id, year, month])
+}
+
 enum farm_certification_status {
   DRAFT
   SUBMITTED
@@ -133,4 +210,11 @@ enum user_role {
   AUDITOR
   AUTHORITY
   ADMIN
+}
+
+enum ndvi_job_status {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
 }
